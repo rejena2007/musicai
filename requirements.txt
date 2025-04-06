@@ -6,3 +6,5 @@ soundfile
 matplotlib
 google-generativeai
 protobuf
+setuptools
+
