@@ -9,12 +9,11 @@ import matplotlib.pyplot as plt
 import tempfile
 import os
 
-# 🔑 Configure Gemini API
-GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY", "your_gemini_api_key_here")  # Secure way for deployment
+# 🔑 Enter your Gemini API key directly
+GEMINI_API_KEY = "AIzaSyAZ1CX7RdN0WNjLt_99CyYaBLsY6mLevfc"  # Replace this with your actual Gemini API key
 genai.configure(api_key=GEMINI_API_KEY)
 
 # 🎵 Streamlit App Title
-st.set_page_config(page_title="AI BGM Generator", layout="centered")
 st.title("🎶 AI-Generated BGM from Indian Classical Music")
 st.markdown("Upload an Indian classical music piece and generate a new BGM using AI!")
 
@@ -22,7 +21,7 @@ st.markdown("Upload an Indian classical music piece and generate a new BGM using
 uploaded_file = st.file_uploader("Upload a WAV file", type=["wav"])
 
 if uploaded_file:
-    # Save uploaded audio to a temp file
+    # Save the uploaded audio to a temp file
     with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_audio:
         temp_audio.write(uploaded_file.getvalue())
         audio_path = temp_audio.name
@@ -30,18 +29,18 @@ if uploaded_file:
     # 🎵 Load the audio
     y, sr = librosa.load(audio_path)
 
-    # 🎼 Extract features
+    # 🎼 Extract musical features
     tempo, _ = librosa.beat.beat_track(y=y, sr=sr)
     pitches, magnitudes = librosa.piptrack(y=y, sr=sr)
     pitch_values = [np.max(pitches[:, i]) for i in range(pitches.shape[1]) if np.max(pitches[:, i]) > 0]
     avg_pitch = np.mean(pitch_values) if pitch_values else 0
 
-    # 📊 Display musical features
+    # 📊 Display extracted features
     st.subheader("🎼 Music Analysis")
     st.write(f"**Tempo:** {tempo:.2f} BPM")
     st.write(f"**Average Pitch:** {avg_pitch:.2f} Hz")
 
-    # 🎻 User input
+    # 🎻 User Inputs
     raga_choice = st.text_input("🎵 Enter Raga Name (e.g., Yaman, Bhairav)", "Yaman")
     mood_choice = st.selectbox("🎭 Choose Mood", ["Peaceful", "Energetic", "Sad", "Meditative", "Joyful"])
 
@@ -50,16 +49,18 @@ if uploaded_file:
         with st.spinner("Generating music composition... 🎼"):
             prompt = f"""
             I am analyzing an Indian classical music piece with an average pitch of {avg_pitch:.2f} Hz and a tempo of {tempo:.2f} BPM.
-            The user wants to generate a new background music (BGM) based on the raga {raga_choice} with a {mood_choice.lower()} mood.
-            Suggest a melody structure, note sequences, and rhythmic pattern suitable for the mood and raga.
+            The user wants to generate a new background music (BGM) based on the raga {raga_choice} with a {mood_choice} mood.
+            Suggest a melody structure, note sequences, and rhythmic pattern for a new composition.
             """
-            chat = genai.GenerativeModel("gemini-pro").start_chat()
-            response = chat.send_message(prompt)
-            ai_suggestions = response.text.strip()
 
-            # 🧾 Display AI suggestions
+            # Using Gemini to generate the music idea
+            model = genai.GenerativeModel("gemini-pro")
+            response = model.generate_content(prompt)
+            ai_suggestions = response.text
+
+            # 🧾 Show AI suggestions
             st.subheader("🎶 AI-Generated Composition")
-            st.markdown(f"```\n{ai_suggestions}\n```")
+            st.text(ai_suggestions)
 
             # 🎼 Generate MIDI from pitch values
             midi = pretty_midi.PrettyMIDI()
@@ -70,7 +71,7 @@ if uploaded_file:
             for pitch, duration in zip(pitch_values, note_durations):
                 note = pretty_midi.Note(
                     velocity=100,
-                    pitch=int(np.clip(pitch, 21, 108)),  # Safe MIDI pitch range
+                    pitch=int(pitch % 128),
                     start=start_time,
                     end=start_time + duration,
                 )
@@ -79,17 +80,14 @@ if uploaded_file:
 
             midi.instruments.append(instrument)
 
-            # 💾 Save MIDI and synthesize audio
+            # 💾 Save MIDI and WAV
             midi_path = "generated_bgm.mid"
             audio_output = "generated_bgm.wav"
             midi.write(midi_path)
 
-            try:
-                synthesized_audio = midi.fluidsynth(fs=sr)  # Use pyfluidsynth backend if installed
-            except:
-                synthesized_audio = midi.synthesize(fs=sr)  # Fallback
-
+            synthesized_audio = midi.synthesize(fs=sr)
             sf.write(audio_output, synthesized_audio, sr)
+
             st.success("✅ New BGM Generated Successfully!")
 
             # 📥 Download buttons
@@ -101,13 +99,13 @@ if uploaded_file:
             # 🎧 Audio player
             st.audio(audio_output, format="audio/wav")
 
-            # 📈 Pitch contour plot
-            st.subheader("📈 Pitch Contour")
+            # 📊 Plot pitch contour
             fig, ax = plt.subplots(figsize=(10, 4))
-            ax.plot(pitch_values, color="purple")
+            ax.plot(pitch_values, label="Pitch Contour", color="purple")
             ax.set_title(f"Pitch Contour for {raga_choice} BGM")
             ax.set_xlabel("Time")
             ax.set_ylabel("Frequency (Hz)")
+            ax.legend()
             st.pyplot(fig)
 
     # 🧹 Clean up temp file
