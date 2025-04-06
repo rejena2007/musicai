@@ -1,4 +1,4 @@
-streamlit
+echo "streamlit
 librosa
 numpy
 pretty_midi
@@ -6,4 +6,4 @@ soundfile
 matplotlib
 google-generativeai
 scipy
-protobuf
+protobuf" > requirements.txt
