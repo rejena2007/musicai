@@ -5,3 +5,5 @@ pretty_midi
 soundfile
 matplotlib
 google-generativeai
+scipy
+protobuf
